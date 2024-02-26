@@ -1,8 +1,17 @@
+import { useContext } from "react";
 import { Alert, Button, Form, Row, Col, Stack } from "react-bootstrap";
+import { AuthContext } from "../context/AuthContext";
 const Login = () => {
+    const {
+        loginInfo,
+        updateLoginInfo,
+        loginUser,
+        loginError,
+        isLoginLoading,
+    } = useContext(AuthContext);
     return (
         <>
-            <Form>
+            <Form onSubmit={loginUser}>
                 <Row
                     style={{
                         height: "100vh",
@@ -18,6 +27,12 @@ const Login = () => {
                                 <Form.Control
                                     type="email"
                                     placeholder="Email"
+                                    onChange={(e) =>
+                                        updateLoginInfo({
+                                            ...loginInfo,
+                                            email: e.target.value.trim(),
+                                        })
+                                    }
                                 />
                             </Form.Group>
                             <Form.Group>
@@ -25,14 +40,22 @@ const Login = () => {
                                 <Form.Control
                                     type="password"
                                     placeholder="Password"
+                                    onChange={(e) =>
+                                        updateLoginInfo({
+                                            ...loginInfo,
+                                            password: e.target.value.trim(),
+                                        })
+                                    }
                                 />
                             </Form.Group>
                             <Button variant="primary" type="submit">
-                                Register
+                                {isLoginLoading ? "Search your count" : "Login"}
                             </Button>
-                            <Alert variant="danger">
-                                <p>An error occured</p>
-                            </Alert>
+                            {loginError?.error && (
+                                <Alert variant="danger">
+                                    <p>{loginError?.message}</p>
+                                </Alert>
+                            )}
                         </Stack>
                     </Col>
                 </Row>
