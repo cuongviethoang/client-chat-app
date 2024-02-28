@@ -6,13 +6,14 @@ export const useFetchRecipientUser = (chat, user) => {
 
     const [error, setError] = useState(null);
 
+    // tìm 1 user có id khác với id người đang đăng nhập
     const recipientId = chat?.members.find((id) => id !== user?._id);
 
     useEffect(() => {
         const getUser = async () => {
             if (!recipientId) return null;
 
-            // gọi api tìm người nhận
+            // gọi api lấy thông tin người nhận
             const response = await getRequest(
                 `${baseUrl}/users/find/${recipientId}`
             );
