@@ -8,9 +8,12 @@ export const ChatContextProvider = ({ children, user }) => {
     const [isUserChatsLoading, setIsUserChatsLoading] = useState(false);
     const [userChatsError, setUserChatsError] = useState(null);
     const [potentialChats, setPotentialChats] = useState([]);
+    const [currentChat, setCurrentChat] = useState(null);
+    const [messages, setMessage] = useState(null);
+    const [isMessagesLoading, setIsMessagesLoading] = useState(false);
+    const [messageError, setMessageError] = useState(null);
 
     useEffect(() => {
-        console.log(">> check user: ", user);
         const getUsers = async () => {
             // gọi api lất tất cả user từ db
             const response = await getRequest(`${baseUrl}/users`);
@@ -37,7 +40,7 @@ export const ChatContextProvider = ({ children, user }) => {
                 return !isChatCreated;
             });
 
-            console.log(">> pChats: ", pChats);
+            console.log(">> Users haven't chatted: ", pChats);
             setPotentialChats(pChats);
         };
         getUsers();
@@ -60,13 +63,44 @@ export const ChatContextProvider = ({ children, user }) => {
                     return setUserChatsError(response);
                 }
 
-                console.log(">> check user chat: ", response);
+                console.log(">> check user chatted: ", response);
                 setUserChats(response);
             }
         };
 
         getUserChats();
     }, [user]);
+
+    useEffect(() => {
+        const getMessages = async () => {
+            setIsMessagesLoading(true);
+            setMessageError(null);
+
+            // gọi api lấy tất cả các cuộc chat mà người dùng đã tham gia vào,(select vào model chat để tìm)
+            const response = await getRequest(
+                `${baseUrl}/messages/${currentChat?._id}`
+            );
+
+            setIsMessagesLoading(false);
+
+            if (response.error) {
+                return setMessageError(response?.message);
+            }
+
+            console.log(
+                `>>Get list message of chatId ${currentChat?._id}:`,
+                response
+            );
+            setMessage(response);
+        };
+
+        getMessages();
+    }, [currentChat]);
+
+    const updateCurrentChat = useCallback((chat) => {
+        console.log(">> Current Chat: ", chat);
+        setCurrentChat(chat);
+    }, []);
 
     const createChat = useCallback(async (firstId, secondId) => {
         const response = await postRequest(
@@ -89,6 +123,11 @@ export const ChatContextProvider = ({ children, user }) => {
                 userChatsError,
                 potentialChats,
                 createChat,
+                updateCurrentChat,
+                messages,
+                isMessagesLoading,
+                messageError,
+                currentChat,
             }}
         >
             {children}
