@@ -1,5 +1,6 @@
 import { createContext, useCallback, useEffect, useState } from "react";
 import { baseUrl, getRequest, postRequest } from "../utils/services";
+import { io } from "socket.io-client";
 
 export const ChatContext = createContext();
 
@@ -14,6 +15,56 @@ export const ChatContextProvider = ({ children, user }) => {
     const [messageError, setMessageError] = useState(null);
     const [sendTextMessageError, setSendTextMessageError] = useState(null);
     const [newMessage, setNewMessage] = useState(null);
+    const [socket, setSocket] = useState(null);
+    const [onlineUsers, setOnlineUsers] = useState([]);
+
+    // Khởi tạo socket
+    useEffect(() => {
+        const newSocket = io("http://localhost:3000"); // cổng 300 là server của socket
+        setSocket(newSocket);
+        // cleanup function
+        return () => {
+            newSocket.disconnect();
+        };
+    }, [user]);
+
+    // client phát ra sự kiện có tên là addNewUser(khi có người dùng đăng nhập vào hệ thống sẽ tự đọng gửi 1 sự kiện đến socket )
+    useEffect(() => {
+        if (socket === null) return;
+        // bắn đi event tên là addNewUser
+        socket.emit("addNewUser", user?._id);
+        // nhận 1 event tên là getOnlineUsers
+        socket.on("getOnlineUsers", (res) => {
+            console.log(">> Online users: ", res);
+            setOnlineUsers(res);
+        });
+    }, [socket]);
+
+    //send message
+    useEffect(() => {
+        if (socket === null) return;
+
+        const recipientId = currentChat?.members.find((id) => id !== user?._id);
+
+        socket.emit("sendMessage", { ...newMessage, recipientId });
+    }, [newMessage]);
+
+    //receive message(chỉ thực hiện đoạn code này ở bên người nhận, bên gửi không chạy vào hàm này)
+    useEffect(() => {
+        if (socket === null) return;
+
+        socket.on("getMessage", (res) => {
+            // nếu hộp chat hiện tại không phải là hộp chat đang muốn gửi tin nhắn
+            if (currentChat?._id !== res?.chatId) return;
+            console.log(">> chech message current 2: ", [...messages, res]);
+
+            setMessages((prev) => [...prev, res]);
+        });
+
+        return () => {
+            socket.off("getMessage");
+        };
+    }, [socket, currentChat]);
 
     useEffect(() => {
         const getUsers = async () => {
@@ -88,11 +139,6 @@ export const ChatContextProvider = ({ children, user }) => {
             if (response.error) {
                 return setMessageError(response?.message);
             }
-
-            console.log(
-                `>>Get list message of chatId ${currentChat?._id}:`,
-                response
-            );
             setMessages(response);
         };
 
@@ -155,6 +201,7 @@ export const ChatContextProvider = ({ children, user }) => {
                 messageError,
                 currentChat,
                 sendTextMessage,
+                onlineUsers,
             }}
         >
             {children}

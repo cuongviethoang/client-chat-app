@@ -8,18 +8,10 @@ import InputEmoji from "react-input-emoji";
 
 const ChatBox = () => {
     const { user } = useContext(AuthContext);
-    const {
-        currentChat,
-        messages,
-        isMessagesLoading,
-        messageError,
-        sendTextMessage,
-    } = useContext(ChatContext);
+    const { currentChat, messages, isMessagesLoading, sendTextMessage } =
+        useContext(ChatContext);
     const { recipientUser } = useFetchRecipientUser(currentChat, user);
     const [textMessage, setTextMessage] = useState("");
-
-    console.log(">> check message: ", messages);
-    console.log(">> check recipientUser: ", recipientUser);
 
     if (!recipientUser)
         return (
@@ -73,7 +65,7 @@ const ChatBox = () => {
                     className="send-btn"
                     onClick={() =>
                         sendTextMessage(
-                            textMessage,
+                            textMessage.trim(),
                             user,
                             currentChat._id,
                             setTextMessage
