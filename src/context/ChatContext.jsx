@@ -17,6 +17,8 @@ export const ChatContextProvider = ({ children, user }) => {
     const [newMessage, setNewMessage] = useState(null);
     const [socket, setSocket] = useState(null);
     const [onlineUsers, setOnlineUsers] = useState([]);
+    const [notifications, setNotifications] = useState([]);
+    const [allUsers, setAllUsers] = useState([]);
 
     // Khởi tạo socket
     useEffect(() => {
@@ -49,7 +51,7 @@ export const ChatContextProvider = ({ children, user }) => {
         socket.emit("sendMessage", { ...newMessage, recipientId });
     }, [newMessage]);
 
-    //receive message(chỉ thực hiện đoạn code này ở bên người nhận, bên gửi không chạy vào hàm này)
+    //receive message and notification(chỉ thực hiện đoạn code này ở bên người nhận, bên gửi không chạy vào hàm này)
     useEffect(() => {
         if (socket === null) return;
 
@@ -61,8 +63,25 @@ export const ChatContextProvider = ({ children, user }) => {
             setMessages((prev) => [...prev, res]);
         });
 
+        socket.on("getNotification", (res) => {
+            // kiểm tra xem bảng chat có được mở hay đang đóng
+            // nếu mở thì thuộc tính isRead là true
+            // nếu chưa mở thì isRead là false
+            const isChatOpen = currentChat?.members.some(
+                (id) => id === res.senderId
+            );
+
+            if (isChatOpen) {
+                // vì gửi 1 thông báo từ server socket lên client mặc định là false -> sửa thành true
+                setNotifications((prev) => [{ ...res, isRead: true }, ...prev]);
+            } else {
+                setNotifications((prev) => [res, ...prev]);
+            }
+        });
+
         return () => {
             socket.off("getMessage");
+            socket.off("getNotification");
         };
     }, [socket, currentChat]);
 
@@ -95,6 +114,7 @@ export const ChatContextProvider = ({ children, user }) => {
 
             console.log(">> Users haven't chatted: ", pChats);
             setPotentialChats(pChats);
+            setAllUsers(response);
         };
         getUsers();
     }, [userChats]);
@@ -122,7 +142,7 @@ export const ChatContextProvider = ({ children, user }) => {
         };
 
         getUserChats();
-    }, [user]);
+    }, [user, notifications]);
 
     useEffect(() => {
         const getMessages = async () => {
@@ -187,6 +207,72 @@ export const ChatContextProvider = ({ children, user }) => {
         setUserChats((prev) => [...prev, response]);
     }, []);
 
+    // khi click vào "mark all notification" sẽ đánh dấu tất cả
+    // thông báo là đã đọc
+    const markAllNotificationsAsRead = useCallback((notifications) => {
+        const mNotifications = notifications.map((n) => {
+            return { ...n, isRead: true };
+        });
+
+        setNotifications(mNotifications);
+    }, []);
+
+    // khi click vào 1 thông báo trong list thông báo sẽ đánh dấu
+    // thông báo tin nhắn đó đã đọc
+    const markNotificationAsRead = useCallback(
+        (notify, userChats, user, notifications) => {
+            // tìm đoạn chat khi click sẽ hiện lên
+            const desiredChat = userChats.find((chat) => {
+                const chatMembers = [user._id, notify.senderId];
+                const isDesiredChat = chat?.members.every((member) => {
+                    return chatMembers.includes(member);
+                });
+                return isDesiredChat;
+            });
+
+            // mark notification as read
+            const mNotifications = notifications.map((item) => {
+                if (notify.senderId === item.senderId) {
+                    return {
+                        ...notify,
+                        isRead: true,
+                    };
+                } else {
+                    return item;
+                }
+            });
+
+            // mở đoạn chat mong muốn
+            updateCurrentChat(desiredChat);
+            // cập nhật lại 1 số thông báo đã được cập nhật isRead: true
+            setNotifications(mNotifications);
+        },
+        []
+    );
+
+    // click vào 1 userChat trong list userChats
+    // nếu có thông báo chưa đọc sẽ được đặt lại thành isRead: true
+    const markThisUserNotificationsAsRead = useCallback(
+        (thisUserNotifications, notifications) => {
+            // mark notifications as read
+            const mNotifications = notifications.map((item) => {
+                let notification;
+
+                thisUserNotifications.forEach((n) => {
+                    if (n.senderId === item.senderId) {
+                        notification = { ...n, isRead: true };
+                    } else {
+                        notification = item;
+                    }
+                });
+                return notification;
+            });
+
+            setNotifications(mNotifications);
+        },
+        []
+    );
+
     return (
         <ChatContext.Provider
             value={{
@@ -202,6 +288,11 @@ export const ChatContextProvider = ({ children, user }) => {
                 currentChat,
                 sendTextMessage,
                 onlineUsers,
+                notifications,
+                allUsers,
+                markAllNotificationsAsRead,
+                markNotificationAsRead,
+                markThisUserNotificationsAsRead,
             }}
         >
             {children}

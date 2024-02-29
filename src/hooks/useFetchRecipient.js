@@ -6,7 +6,7 @@ export const useFetchRecipientUser = (chat, user) => {
 
     const [error, setError] = useState(null);
 
-    // tìm 1 user có id khác với id người đang đăng nhập
+    // tìm id 1 user có id khác với id người đang đăng nhập
     const recipientId = chat?.members.find((id) => id !== user?._id);
 
     useEffect(() => {
